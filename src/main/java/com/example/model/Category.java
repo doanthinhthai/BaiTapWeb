@@ -1,72 +1,35 @@
 package com.example.model;
 
-import jakarta.persistence.*;
 import java.io.Serializable;
 import java.util.List;
+import jakarta.persistence.*;
+import lombok.*;
 
 @Entity
 @Table(name = "categories")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 @NamedQuery(name = "Category.findAll", query = "SELECT c FROM Category c")
 public class Category implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "CategoryId")
-    private int categoryid;
+    @Column(name = "categoryId")
+    private int categoryId;
 
-    @Column(name = "CategoryName", columnDefinition = "nvarchar(50) not null")
+    @Column(name = "categoryname", columnDefinition = "NVARCHAR(100) NOT NULL")
     private String categoryname;
 
-    @Column(name = "Images", columnDefinition = "nvarchar(500) null")
+    @Column(name = "images", columnDefinition = "NVARCHAR(500) NULL")
     private String images;
 
+    @Column(name = "status")
     private int status;
 
-    @OneToMany(mappedBy = "category")
-    private List<Video> videos;
-
-	public int getCategoryid() {
-		return categoryid;
-	}
-
-	public void setCategoryid(int categoryid) {
-		this.categoryid = categoryid;
-	}
-
-	public String getCategoryname() {
-		return categoryname;
-	}
-
-	public void setCategoryname(String categoryname) {
-		this.categoryname = categoryname;
-	}
-
-	public String getImages() {
-		return images;
-	}
-
-	public void setImages(String images) {
-		this.images = images;
-	}
-
-	public int getStatus() {
-		return status;
-	}
-
-	public void setStatus(int status) {
-		this.status = status;
-	}
-
-	public List<Video> getVideos() {
-		return videos;
-	}
-
-	public void setVideos(List<Video> videos) {
-		this.videos = videos;
-	}
-
-	public static long getSerialversionuid() {
-		return serialVersionUID;
-	}
+    // Quan hệ 1-N với Product
+    @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ToString.Exclude
+    private List<Product> products;
 }
