@@ -20,4 +20,7 @@ public interface IUserService {
     String resetPassword(String email, String otp, String newPassword);
 
     User findByUsername(String username);
+    
+    User findById(int id);
+    boolean updateProfile(int id, String fullname, String phone, String images);
 }

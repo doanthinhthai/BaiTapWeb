@@ -32,11 +32,14 @@ public class User implements Serializable {
     @Column(name = "phone", length = 20)
     private String phone;
 
+    @Column(name = "images", columnDefinition = "NVARCHAR(500) NULL")
+    private String images; // Ảnh đại diện người dùng
+
     @Column(name = "role")
-    private int role; // 1: Admin, 0: User
+    private int role;
 
     @Column(name = "status")
-    private int status; // 0: Chờ kích hoạt OTP, 1: Đã kích hoạt
+    private int status;
 
     @Column(name = "otp", length = 10)
     private String otp;
@@ -44,7 +47,4 @@ public class User implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "otp_expiry")
     private Date otpExpiry;
-
-    @Column(name = "avatar", columnDefinition = "NVARCHAR(255)")
-    private String avatar;
 }
