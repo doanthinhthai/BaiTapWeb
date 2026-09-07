@@ -22,6 +22,7 @@ public class AuthController extends HttpServlet {
         String uri = req.getRequestURI();
 
         if (uri.endsWith("/login")) {
+            // Lấy username từ Cookie nếu có để hiển thị lại
             Cookie[] cookies = req.getCookies();
             if (cookies != null) {
                 for (Cookie c : cookies) {
@@ -38,6 +39,11 @@ public class AuthController extends HttpServlet {
             req.getRequestDispatcher("/views/auth/register.jsp").forward(req, resp);
 
         } else if (uri.endsWith("/verify-otp")) {
+            // Nhận email từ query param nếu bấm trực tiếp từ link trong email
+            String emailParam = req.getParameter("email");
+            if (emailParam != null) {
+                req.getSession().setAttribute("verifyEmail", emailParam);
+            }
             req.getRequestDispatcher("/views/auth/verify-otp.jsp").forward(req, resp);
 
         } else if (uri.endsWith("/forgot-password")) {
@@ -47,6 +53,7 @@ public class AuthController extends HttpServlet {
             req.getRequestDispatcher("/views/auth/reset-password.jsp").forward(req, resp);
 
         } else if (uri.endsWith("/logout")) {
+            // Hủy session ở Backend
             HttpSession session = req.getSession(false);
             if (session != null) {
                 session.removeAttribute("account");
@@ -61,7 +68,7 @@ public class AuthController extends HttpServlet {
         req.setCharacterEncoding("UTF-8");
         String uri = req.getRequestURI();
 
-        // 1. ĐĂNG KÝ
+        // 1. LUỒNG ĐĂNG KÝ
         if (uri.endsWith("/register")) {
             String username = req.getParameter("username");
             String email = req.getParameter("email");
@@ -69,31 +76,35 @@ public class AuthController extends HttpServlet {
             String fullname = req.getParameter("fullname");
             String phone = req.getParameter("phone");
 
-            boolean success = userService.register(username, email, password, fullname, phone);
-            if (success) {
+            // Truyền trực tiếp req vào service để backend tự build link email
+            String result = userService.register(req, username, email, password, fullname, phone);
+
+            if ("SUCCESS".equals(result)) {
                 req.getSession().setAttribute("verifyEmail", email);
                 resp.sendRedirect(req.getContextPath() + "/verify-otp");
             } else {
-                req.setAttribute("error", "Username hoặc Email đã tồn tại!");
+                req.setAttribute("error", result);
                 req.getRequestDispatcher("/views/auth/register.jsp").forward(req, resp);
             }
 
-        // 2. KÍCH HOẠT OTP
+        // 2. LUỒNG KÍCH HOẠT MÃ OTP
         } else if (uri.endsWith("/verify-otp")) {
             String email = (String) req.getSession().getAttribute("verifyEmail");
             if (email == null) email = req.getParameter("email");
             String otp = req.getParameter("otp");
 
-            if (userService.verifyOtp(email, otp)) {
+            String result = userService.verifyOtp(email, otp);
+
+            if ("SUCCESS".equals(result)) {
                 req.getSession().removeAttribute("verifyEmail");
-                req.setAttribute("message", "Kích hoạt tài khoản thành công! Vui lòng đăng nhập.");
+                req.setAttribute("message", "Tài khoản của bạn đã được kích hoạt thành công! Hãy đăng nhập.");
                 req.getRequestDispatcher("/views/auth/login.jsp").forward(req, resp);
             } else {
-                req.setAttribute("error", "Mã OTP không chính xác hoặc đã quá hạn!");
+                req.setAttribute("error", result);
                 req.getRequestDispatcher("/views/auth/verify-otp.jsp").forward(req, resp);
             }
 
-        // 3. ĐĂNG NHẬP VỚI SESSION & COOKIE
+        // 3. LUỒNG ĐĂNG NHẬP (SESSION + COOKIE)
         } else if (uri.endsWith("/login")) {
             String username = req.getParameter("username");
             String password = req.getParameter("password");
@@ -103,58 +114,64 @@ public class AuthController extends HttpServlet {
 
             if (user != null) {
                 if (user.getStatus() != 1) {
-                    req.setAttribute("error", "Tài khoản chưa kích hoạt OTP hoặc đã bị khóa!");
+                    req.setAttribute("error", "Tài khoản chưa được kích hoạt mã OTP hoặc đã bị khóa!");
                     req.getRequestDispatcher("/views/auth/login.jsp").forward(req, resp);
                     return;
                 }
 
-                // Lưu Session
+                // Lưu User vào Session
                 HttpSession session = req.getSession();
                 session.setAttribute("account", user);
 
-                // Lưu Cookie nếu chọn Remember
+                // Xử lý Cookie Remember Me ở Backend
                 Cookie cookie = new Cookie(Constant.COOKIE_REMEMBER, username);
                 if ("on".equals(remember)) {
                     cookie.setMaxAge(7 * 24 * 60 * 60); // 7 ngày
                 } else {
-                    cookie.setMaxAge(0);
+                    cookie.setMaxAge(0); // Xóa cookie nếu không tick
                 }
                 cookie.setPath("/");
+                cookie.setHttpOnly(true); // Bảo mật tránh tấn công XSS từ client
                 resp.addCookie(cookie);
 
+                // Điều hướng theo Role
                 if (user.getRole() == 1) {
-                    resp.sendRedirect(req.getContextPath() + "/admin/categories");
+                    resp.sendRedirect(req.getContextPath() + "/admin/products");
                 } else {
                     resp.sendRedirect(req.getContextPath() + "/home");
                 }
             } else {
-                req.setAttribute("error", "Sai tên đăng nhập hoặc mật khẩu!");
+                req.setAttribute("error", "Tên đăng nhập hoặc mật khẩu không chính xác!");
                 req.getRequestDispatcher("/views/auth/login.jsp").forward(req, resp);
             }
 
-        // 4. QUÊN MẬT KHẨU GỬI OTP
+        // 4. LUỒNG QUÊN MẬT KHẨU
         } else if (uri.endsWith("/forgot-password")) {
             String email = req.getParameter("email");
-            if (userService.forgotPassword(email)) {
+            String result = userService.forgotPassword(req, email);
+
+            if ("SUCCESS".equals(result)) {
                 req.getSession().setAttribute("resetEmail", email);
                 resp.sendRedirect(req.getContextPath() + "/reset-password");
             } else {
-                req.setAttribute("error", "Email không tồn tại trong hệ thống!");
+                req.setAttribute("error", result);
                 req.getRequestDispatcher("/views/auth/forgot-password.jsp").forward(req, resp);
             }
 
-        // 5. ĐẶT LẠI MẬT KHẨU BẰNG OTP
+        // 5. LUỒNG ĐẶT LẠI MẬT KHẨU MỚI
         } else if (uri.endsWith("/reset-password")) {
             String email = (String) req.getSession().getAttribute("resetEmail");
             String otp = req.getParameter("otp");
             String newPassword = req.getParameter("newPassword");
 
-            if (userService.resetPassword(email, otp, newPassword)) {
+            String result = userService.resetPassword(email, otp, newPassword);
+
+            if ("SUCCESS".equals(result)) {
                 req.getSession().removeAttribute("resetEmail");
-                req.setAttribute("message", "Đổi mật khẩu thành công! Hãy đăng nhập lại.");
+                req.setAttribute("message", "Mật khẩu đã được đặt lại thành công!");
                 req.getRequestDispatcher("/views/auth/login.jsp").forward(req, resp);
             } else {
-                req.setAttribute("error", "Mã OTP không đúng hoặc đã hết hạn!");
+                req.setAttribute("error", result);
                 req.getRequestDispatcher("/views/auth/reset-password.jsp").forward(req, resp);
             }
         }
