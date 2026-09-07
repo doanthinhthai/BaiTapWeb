@@ -94,6 +94,14 @@
             <version>1.18.30</version>
             <scope>provided</scope>
         </dependency>
+        
+        <!-- SiteMesh 3 cho Jakarta EE 10 / Servlet 6.0 -->
+		<dependency>
+			<groupId>org.sitemesh</groupId>
+			<artifactId>sitemesh</artifactId>
+			<version>3.3.0-RC1</version>
+		</dependency>
+		
     </dependencies>
 
     <build>

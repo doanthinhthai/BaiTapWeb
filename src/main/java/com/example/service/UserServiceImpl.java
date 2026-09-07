@@ -153,4 +153,24 @@ public class UserServiceImpl implements IUserService {
     public User findByUsername(String username) {
         return userDao.findByUsername(username);
     }
+    
+    @Override
+    public User findById(int id) {
+        return userDao.findById(id);
+    }
+
+    @Override
+    public boolean updateProfile(int id, String fullname, String phone, String images) {
+        User user = userDao.findById(id);
+        if (user != null) {
+            user.setFullname(fullname);
+            user.setPhone(phone);
+            if (images != null && !images.isEmpty()) {
+                user.setImages(images);
+            }
+            userDao.update(user);
+            return true;
+        }
+        return false;
+    }
 }
